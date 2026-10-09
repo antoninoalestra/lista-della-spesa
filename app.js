@@ -1899,6 +1899,7 @@ function persistList(list) {
   if (list) {
     saveList(list);
     notifyDataChange();
+    updateNavBadges();
   }
 }
 
@@ -2213,7 +2214,37 @@ function render() {
   if (sheetStack.includes('quickAdd')) renderQuickAdd();
 }
 
+
+function updateNavBadges(animate = false) {
+  const al = activeLists();
+  const uncheckedCount = al.reduce((sum, l) => sum + l.items.filter((i) => !i.checked).length, 0);
+  const totalCount = al.reduce((sum, l) => sum + l.items.length, 0);
+  const countToShow = uncheckedCount > 0 ? uncheckedCount : totalCount;
+  const text = countToShow > 99 ? '99+' : String(countToShow);
+
+  document.querySelectorAll('.tab-badge').forEach((badge) => {
+    badge.textContent = text;
+    badge.classList.toggle('hidden', countToShow <= 0);
+    if (animate && countToShow > 0) {
+      badge.classList.remove('badge-pulse');
+      void badge.offsetWidth;
+      badge.classList.add('badge-pulse');
+      setTimeout(() => badge.classList.remove('badge-pulse'), 500);
+    }
+  });
+
+  if (animate) {
+    document.querySelectorAll('[data-view="lists"] .tab-icon-wrap').forEach((wrap) => {
+      wrap.classList.remove('badge-pulse');
+      void wrap.offsetWidth;
+      wrap.classList.add('badge-pulse');
+      setTimeout(() => wrap.classList.remove('badge-pulse'), 500);
+    });
+  }
+}
+
 function renderChrome() {
+  updateNavBadges();
   const tab = route.view === 'detail' ? 'lists' : route.view;
   document.querySelectorAll('[data-action="go-tab"]').forEach((btn) => {
     const active = btn.dataset.view === tab;
@@ -3308,6 +3339,110 @@ function getOffersForStore(store) {
 
 let pendingOfferToAdd = null;
 
+
+function getOfferPresence(offerId) {
+  if (!offerId) return [];
+  const al = activeLists();
+  const results = [];
+  for (const list of al) {
+    const item = list.items.find(
+      (i) => (i.fromOffer && String(i.store?.offerId) === String(offerId)) || String(i.foodId) === 'offer_' + offerId
+    );
+    if (item) {
+      results.push({ list, item });
+    }
+  }
+  return results;
+}
+
+function updateOfferButtonState(offerId) {
+  const presences = getOfferPresence(offerId);
+  const isAdded = presences.length > 0;
+  const totalQty = presences.reduce((acc, p) => acc + (Number(p.item.qty) || 1), 0);
+
+  document.querySelectorAll(`.offer-add-btn[data-offer-id="${offerId}"]`).forEach((btn) => {
+    btn.classList.toggle('is-added', isAdded);
+    if (isAdded) {
+      btn.dataset.action = 'manage-offer-in-list';
+      btn.title = 'Presente nella spesa · Clicca per gestire o rimuovere';
+      btn.innerHTML = `${icon('check')}<span>Aggiunto${totalQty > 1 ? ` (${totalQty})` : ''}</span>`;
+    } else {
+      btn.dataset.action = 'add-offer-to-list';
+      btn.title = 'Aggiungi alla lista della spesa';
+      btn.innerHTML = `${icon('plus')}<span>Lista</span>`;
+    }
+  });
+}
+
+function openManageOfferModal(offerId, storeName) {
+  const all = activeOffers(offersState.data?.offers || []);
+  let offer = all.find((o) => String(o.id) === String(offerId));
+  const presences = getOfferPresence(offerId);
+  if (presences.length === 0) {
+    updateOfferButtonState(offerId);
+    return;
+  }
+  if (!offer && presences[0]?.item?.store) {
+    const st = presences[0].item.store;
+    offer = {
+      id: offerId,
+      name: presences[0].item.food?.name || st.product || 'Offerta',
+      price: st.price,
+      chainName: st.chainName || storeName,
+    };
+  }
+  if (!offer) return;
+
+  const badge = $('manageOfferProductBadge');
+  if (badge) {
+    badge.innerHTML = `
+      <span class="badge-icon">${icon('seal-percent', { weight: 'duotone' })}</span>
+      <span class="badge-text"><strong>${escapeHtml(offer.name)}</strong> · ${formatEuro(offer.price)}${storeName || offer.chainName ? ` (${escapeHtml(storeName || offer.chainName)})` : ''}</span>
+    `;
+  }
+
+  const container = $('manageOfferContent');
+  if (container) {
+    const al = activeLists();
+    const listIdsWithOffer = new Set(presences.map((p) => p.list.id));
+    const listsWithoutOffer = al.filter((l) => !listIdsWithOffer.has(l.id));
+
+    const cardsHtml = presences
+      .map(({ list, item }) => {
+        const qty = Number(item.qty) || 1;
+        return `
+          <div class="manage-offer-card" data-list-id="${list.id}" data-offer-id="${offerId}">
+            <div class="manage-card-header">
+              <span class="manage-list-name">${icon('list-checks', { weight: 'duotone' })} ${escapeHtml(list.name)}</span>
+              <button type="button" class="btn btn-quiet btn-sm manage-remove-btn" data-action="remove-offer-item" data-list-id="${list.id}" data-offer-id="${offerId}">
+                ${icon('trash')} Rimuovi
+              </button>
+            </div>
+            <div class="manage-qty-row">
+              <span class="manage-qty-label">Quantità nella spesa:</span>
+              <div class="manage-stepper">
+                <button type="button" class="stepper-btn" data-action="step-offer-qty" data-list-id="${list.id}" data-offer-id="${offerId}" data-step="-1" aria-label="Diminuisci quantità">${icon('minus')}</button>
+                <span class="stepper-val">${qty}</span>
+                <button type="button" class="stepper-btn" data-action="step-offer-qty" data-list-id="${list.id}" data-offer-id="${offerId}" data-step="1" aria-label="Aumenta quantità">${icon('plus')}</button>
+              </div>
+            </div>
+          </div>`;
+      })
+      .join('');
+
+    const addAnotherHtml =
+      listsWithoutOffer.length > 0
+        ? `<button type="button" class="btn btn-quiet btn-full" data-action="add-offer-another-list" data-offer-id="${offerId}" data-store-name="${escapeHtml(storeName || offer.chainName || '')}" style="margin-top:4px;">
+            ${icon('plus')} Aggiungi anche a un'altra lista
+          </button>`
+        : '';
+
+    container.innerHTML = cardsHtml + addAnotherHtml;
+  }
+
+  openSheet('manageOffer');
+}
+
 function openTargetListModal(offer, storeName) {
   pendingOfferToAdd = { offer, storeName };
   const al = activeLists();
@@ -3391,8 +3526,25 @@ async function addOfferToSpecificList(offer, storeName, list) {
     item.fromOffer = true;
   }
   await persistList(list);
-  haptic(10);
-  showToast(`Aggiunto a “${list.name}”: ${offer.name} (${formatEuro(offer.price)})`, {
+  haptic(15);
+
+  // Aggiorna visivamente il pulsante con micro-animazione immediata
+  const presences = getOfferPresence(offer.id);
+  const totalQty = presences.reduce((acc, p) => acc + (Number(p.item.qty) || 1), 0);
+  document.querySelectorAll(`.offer-add-btn[data-offer-id="${offer.id}"]`).forEach((btn) => {
+    btn.classList.add('is-added');
+    btn.classList.remove('just-added');
+    void btn.offsetWidth;
+    btn.classList.add('just-added');
+    btn.dataset.action = 'manage-offer-in-list';
+    btn.title = 'Presente nella spesa · Clicca per gestire o rimuovere';
+    btn.innerHTML = `${icon('check')}<span>Aggiunto${totalQty > 1 ? ` (${totalQty})` : ''}</span>`;
+    setTimeout(() => btn.classList.remove('just-added'), 500);
+  });
+
+  updateNavBadges(true);
+
+  showToast(`✓ Aggiunto a “${list.name}”: ${offer.name} (${formatEuro(offer.price)})`, {
     actionLabel: 'Apri lista',
     onAction: () => navigate('detail', { listId: list.id }),
   });
@@ -3640,9 +3792,18 @@ function offerRow(o, { storeName = '', showChain = false, extra = '', badge = nu
         <span class="price">${formatEuro(o.price)}</span>
         ${o.discountPct ? `<span class="badge-discount">−${o.discountPct}%</span>` : badge ? `<span class="badge-discount is-soft" title="Rispetto al prezzo medio">${badge}</span>` : o.unitPrice ? `<span class="unit-price">${formatUnitPrice(o.unitPrice)}</span>` : ''}
       </div>
-      <button class="offer-add-btn" type="button" data-action="add-offer-to-list" data-offer-id="${o.id}" data-store-name="${escapeHtml(storeName || o.chainName || '')}" title="Aggiungi alla lista della spesa">
-        ${icon('plus')}<span>Lista</span>
-      </button>
+      ${(() => {
+        const presences = getOfferPresence(o.id);
+        const isAdded = presences.length > 0;
+        const totalQty = presences.reduce((acc, p) => acc + (Number(p.item.qty) || 1), 0);
+        return isAdded
+          ? `<button class="offer-add-btn is-added" type="button" data-action="manage-offer-in-list" data-offer-id="${o.id}" data-store-name="${escapeHtml(storeName || o.chainName || '')}" title="Presente nella spesa · Clicca per gestire o rimuovere">
+              ${icon('check')}<span>Aggiunto${totalQty > 1 ? ` (${totalQty})` : ''}</span>
+            </button>`
+          : `<button class="offer-add-btn" type="button" data-action="add-offer-to-list" data-offer-id="${o.id}" data-store-name="${escapeHtml(storeName || o.chainName || '')}" title="Aggiungi alla lista della spesa">
+              ${icon('plus')}<span>Lista</span>
+            </button>`;
+      })()}
     </li>`;
 }
 
@@ -3873,6 +4034,74 @@ const actions = {
     const offer = all.find((o) => o.id === offerId);
     if (!offer) return;
     await addOfferToList(offer, storeName);
+  },
+  'manage-offer-in-list': (b) => {
+    const offerId = b.dataset.offerId;
+    const storeName = b.dataset.storeName || '';
+    openManageOfferModal(offerId, storeName);
+  },
+  'step-offer-qty': async (b) => {
+    const listId = Number(b.dataset.listId);
+    const offerId = b.dataset.offerId;
+    const step = Number(b.dataset.step) || 0;
+    const list = getList(listId);
+    if (!list) return;
+    const item = list.items.find(
+      (i) => (i.fromOffer && String(i.store?.offerId) === String(offerId)) || String(i.foodId) === 'offer_' + offerId
+    );
+    if (!item) return;
+
+    const currentQty = Number(item.qty) || 1;
+    const newQty = currentQty + step;
+    if (newQty <= 0) {
+      list.items = list.items.filter((i) => i !== item);
+      await persistList(list);
+      haptic(10);
+      updateOfferButtonState(offerId);
+      const remaining = getOfferPresence(offerId);
+      if (remaining.length === 0) {
+        closeTopSheet();
+        showToast(`Rimosso dalla lista “${list.name}”`);
+      } else {
+        openManageOfferModal(offerId);
+      }
+    } else {
+      item.qty = newQty;
+      await persistList(list);
+      haptic(8);
+      const stepperVal = b.parentElement?.querySelector('.stepper-val');
+      if (stepperVal) stepperVal.textContent = newQty;
+      updateOfferButtonState(offerId);
+    }
+  },
+  'remove-offer-item': async (b) => {
+    const listId = Number(b.dataset.listId);
+    const offerId = b.dataset.offerId;
+    const list = getList(listId);
+    if (!list) return;
+    list.items = list.items.filter(
+      (i) => !(i.fromOffer && String(i.store?.offerId) === String(offerId)) && String(i.foodId) !== 'offer_' + offerId
+    );
+    await persistList(list);
+    haptic(10);
+    updateOfferButtonState(offerId);
+    const remaining = getOfferPresence(offerId);
+    if (remaining.length === 0) {
+      closeTopSheet();
+      showToast(`Rimosso dalla lista “${list.name}”`);
+    } else {
+      openManageOfferModal(offerId);
+    }
+  },
+  'add-offer-another-list': (b) => {
+    const offerId = b.dataset.offerId;
+    const storeName = b.dataset.storeName || '';
+    const all = activeOffers(offersState.data?.offers || []);
+    const offer = all.find((o) => String(o.id) === String(offerId));
+    closeTopSheet();
+    if (offer) {
+      openTargetListModal(offer, storeName);
+    }
   },
   'choose-target-list': async (b) => {
     if (!pendingOfferToAdd) {
