@@ -486,6 +486,28 @@ function formatShortDate(iso) {
   return new Date(y, m - 1, d).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
 }
 
+// Risolve l'alimento di un elemento della lista:
+// Per gli alimenti del catalogo fa riferimento a foodsById;
+// Per i prodotti aggiunti dalle Offerte usa l'oggetto incorporato nell'item (senza inquinare il catalogo).
+function getItemFood(item) {
+  if (!item) return null;
+  if (item.food) return item.food;
+  const f = foodsById.get(item.foodId);
+  if (f) return f;
+  if (item.fromOffer) {
+    const pName = item.store?.product || 'Offerta';
+    const { category, icon: iconName } = guessCategoryAndIcon(pName);
+    return {
+      id: item.foodId,
+      name: pName,
+      category: category || 'dispensa',
+      icon: iconName || 'seal-percent',
+      isOffer: true,
+    };
+  }
+  return null;
+}
+
 // Gruppi per reparto, oppure per negozio se la lista è stata divisa ("Dividi la lista per negozio").
 // Con i negozi ogni gruppo è una pseudo-categoria e a destra della riga si mostra il prezzo.
 function groupListItems(list, foodsById, categories, { chainColors = {} } = {}) {
@@ -493,7 +515,7 @@ function groupListItems(list, foodsById, categories, { chainColors = {} } = {}) 
   const catById = new Map(categories.map((c) => [c.id, c]));
   const groups = new Map();
   for (const item of list.items) {
-    const food = foodsById.get(item.foodId);
+    const food = getItemFood(item);
     if (!food) continue;
     const st = item.store;
     const isOffer = item.fromOffer || Boolean(st && st.offerId);
@@ -551,7 +573,7 @@ function buildListText(list, foodsById, categories) {
       if (it.price) {
         if (it.note) line += ` (${it.note})`;
         line += `, ${it.qty}`;
-        const st = list.items.find((i) => i.foodId === it.food.id)?.store;
+        const st = list.items.find((i) => String(i.foodId) === String(it.food.id))?.store;
         if (st && st.validTo) line += ` fino al ${formatShortDate(st.validTo)}`;
       } else {
         if (it.qty) line += ` (${it.qty})`;
@@ -1850,7 +1872,7 @@ if (syncChannel) {
   syncChannel.onmessage = async (e) => {
     if (e.data?.type === 'update') {
       lists = await getLists();
-      lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId))));
+      lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId) || i.fromOffer || i.food)));
       render();
     }
   };
@@ -1860,13 +1882,13 @@ if (syncChannel) {
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
     lists = await getLists();
-    lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId))));
+    lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId) || i.fromOffer || i.food)));
     render();
   }
 });
 window.addEventListener('focus', async () => {
   lists = await getLists();
-  lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId))));
+  lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId) || i.fromOffer || i.food)));
   render();
 });
 
@@ -2214,9 +2236,9 @@ function listPreviewIcons(list, max = 5) {
   return list.items
     .slice(0, max)
     .map((it) => {
-      const food = foodsById.get(it.foodId);
+      const food = getItemFood(it);
       if (!food) return '';
-      const color = categoryById(food.category).color;
+      const color = it.fromOffer ? '#d45b34' : (categoryById(food.category)?.color || '#2f5a43');
       return `<span class="preview-icon" style="--cat:${color}" title="${escapeHtml(food.name)}">${icon(food.icon, { weight: 'duotone' })}</span>`;
     })
     .join('');
@@ -2478,7 +2500,7 @@ function renderDetail({ animate = false } = {}) {
 
 // Gruppi del dettaglio: per reparto (default) o per negozio dopo "Dividi la lista per negozio".
 function groupItemsForDetail(list, byStore) {
-  const entries = list.items.map((item) => ({ item, food: foodsById.get(item.foodId) })).filter((e) => e.food);
+  const entries = list.items.map((item) => ({ item, food: getItemFood(item) })).filter((e) => e.food);
   if (!byStore) {
     const offerEntries = entries.filter((e) => e.item.fromOffer || Boolean(e.item.store && e.item.store.offerId));
     const regularEntries = entries.filter((e) => !e.item.fromOffer && !Boolean(e.item.store && e.item.store.offerId));
@@ -2562,7 +2584,7 @@ function endSwipe(e, cancelled) {
   if (!cancelled && dx <= -SWIPE_THRESHOLD) {
     s.row.style.transform = 'translateX(-100%)';
     haptic(12);
-    setTimeout(() => removeItemWithUndo(Number(s.li.dataset.foodId)), 160);
+    setTimeout(() => removeItemWithUndo(s.li.dataset.foodId), 160);
   } else {
     s.row.style.transform = '';
     s.bg.style.opacity = '0';
@@ -2583,7 +2605,7 @@ async function newList() {
 
 function toggleCheck(foodId) {
   const list = getSelectedList();
-  const item = list && list.items.find((i) => i.foodId === foodId);
+  const item = list && list.items.find((i) => String(i.foodId) === String(foodId));
   if (!item) return;
   item.checked = !item.checked;
   persistList(list);
@@ -2595,12 +2617,12 @@ function toggleCheck(foodId) {
 function removeItemWithUndo(foodId) {
   const list = getSelectedList();
   if (!list) return;
-  const idx = list.items.findIndex((i) => i.foodId === foodId);
+  const idx = list.items.findIndex((i) => String(i.foodId) === String(foodId));
   if (idx < 0) return;
   const [removed] = list.items.splice(idx, 1);
   persistList(list);
   render();
-  const food = foodsById.get(foodId);
+  const food = getItemFood(removed);
   showToast(`${food ? food.name : 'Alimento'} tolto dalla lista`, {
     actionLabel: 'Annulla',
     onAction: () => {
@@ -2688,8 +2710,9 @@ async function restoreArchivedList(id) {
   }
   const copy = await createList({
     name: newName,
-    items: source.items.map(({ foodId, qty, note, store, fromOffer }) => ({
+    items: source.items.map(({ foodId, food, qty, note, store, fromOffer }) => ({
       foodId,
+      ...(food ? { food } : {}),
       checked: false,
       ...(qty ? { qty } : {}),
       ...(note ? { note } : {}),
@@ -2710,7 +2733,7 @@ async function copyListToNew(id) {
   const name = source.archived ? source.name : `${source.name} (copia)`;
   const copy = await createList({
     name: activeLists().some((l) => l.name === name) ? `${name} (copia)` : name,
-    items: source.items.map(({ foodId, qty, note, store, fromOffer }) => ({ foodId, checked: false, ...(qty ? { qty } : {}), ...(note ? { note } : {}), ...(store ? { store } : {}), ...(fromOffer ? { fromOffer } : {}) })),
+    items: source.items.map(({ foodId, food, qty, note, store, fromOffer }) => ({ foodId, ...(food ? { food } : {}), checked: false, ...(qty ? { qty } : {}), ...(note ? { note } : {}), ...(store ? { store } : {}), ...(fromOffer ? { fromOffer } : {}) })),
   });
   navigate('detail', { listId: copy.id, replace: route.view === 'detail' });
   showToast(source.archived ? 'Lista riaperta con tutti gli alimenti da prendere' : 'Lista duplicata');
@@ -2848,15 +2871,15 @@ function jumpToCategory(container, catId) {
 
 function openItemEdit(foodId) {
   const list = getSelectedList();
-  const item = list && list.items.find((i) => i.foodId === foodId);
-  const food = foodsById.get(foodId);
+  const item = list && list.items.find((i) => String(i.foodId) === String(foodId));
+  const food = item ? getItemFood(item) : null;
   if (!item || !food) return;
   editingFoodId = foodId;
-  const cat = categoryById(food.category);
-  el.itemEditIcon.style.setProperty('--cat', cat.color);
+  const cat = categoryById(food.category) || { color: '#d45b34', name: 'Offerta' };
+  el.itemEditIcon.style.setProperty('--cat', item.fromOffer ? '#d45b34' : cat.color);
   el.itemEditIcon.innerHTML = icon(food.icon, { weight: 'duotone' });
   el.itemEditName.textContent = food.name;
-  el.itemEditCategory.textContent = cat.name;
+  el.itemEditCategory.textContent = item.fromOffer ? 'Offerta' : cat.name;
   el.qtyInput.value = item.qty || '';
   el.noteInput.value = item.note || '';
   const st = item.store;
@@ -2870,7 +2893,7 @@ function openItemEdit(foodId) {
 
 function saveItemEdit() {
   const list = getSelectedList();
-  const item = list && list.items.find((i) => i.foodId === editingFoodId);
+  const item = list && list.items.find((i) => String(i.foodId) === String(editingFoodId));
   editingFoodId = null;
   if (!item) return;
   const qty = el.qtyInput.value.replace(/\s+/g, ' ').trim();
@@ -3193,7 +3216,7 @@ function validateBackup(data) {
   }
   for (const l of data.lists) {
     if (typeof l.id !== 'number' || typeof l.name !== 'string' || !Array.isArray(l.items)) throw new Error('liste non valide');
-    l.items = l.items.filter((i) => foodIds.has(i.foodId));
+    l.items = l.items.filter((i) => foodIds.has(i.foodId) || i.fromOffer || i.food);
   }
   return data;
 }
@@ -3321,18 +3344,13 @@ function openTargetListModal(offer, storeName) {
   openSheet('targetList');
 }
 
-// Aggiunge un alimento in offerta a una lista specifica (nella sezione Offerte)
+// Aggiunge un alimento in offerta a una lista specifica (nella sezione Offerte).
+// I prodotti delle offerte vengono scritti ESCLUSIVAMENTE nella lista e NON vengono salvati nel catalogo alimenti.
 async function addOfferToSpecificList(offer, storeName, list) {
   if (!list) return;
-  const searchName = offer.foodName || offer.name;
-  let food = foods.find((f) => normalizeName(f.name) === normalizeName(searchName));
-  if (!food) {
-    const { category, icon: iconName } = guessCategoryAndIcon(offer.name);
-    food = await addFood({ name: capitalize(offer.name), category, icon: iconName, custom: true });
-    foods.push(food);
-    foodsById.set(food.id, food);
-  }
-  let item = list.items.find((i) => i.foodId === food.id);
+  const { category, icon: iconName } = guessCategoryAndIcon(offer.name);
+  const offerFoodId = 'offer_' + offer.id;
+
   const noteText = `${offer.brand ? offer.brand + ' · ' : ''}${formatEuro(offer.price)}${storeName ? ` (${storeName})` : ''}`;
   const storeData = {
     chain: offer.chain,
@@ -3343,9 +3361,19 @@ async function addOfferToSpecificList(offer, storeName, list) {
     unitPrice: offer.unitPrice ? formatUnitPrice(offer.unitPrice) : '',
     validTo: offer.validTo,
   };
+  const foodData = {
+    id: offerFoodId,
+    name: capitalize(offer.name),
+    category,
+    icon: iconName,
+    isOffer: true,
+  };
+
+  let item = list.items.find((i) => String(i.foodId) === String(offerFoodId) || (i.fromOffer && i.store?.offerId === offer.id));
   if (!item) {
     item = {
-      foodId: food.id,
+      foodId: offerFoodId,
+      food: foodData,
       checked: false,
       note: noteText,
       store: storeData,
@@ -3353,6 +3381,8 @@ async function addOfferToSpecificList(offer, storeName, list) {
     };
     list.items.push(item);
   } else {
+    item.foodId = offerFoodId;
+    item.food = foodData;
     item.note = noteText;
     item.store = storeData;
     item.fromOffer = true;
@@ -3746,8 +3776,8 @@ const actions = {
     closeAllSheets(() => cb && cb());
   },
 
-  'toggle-check': (b) => toggleCheck(Number(b.dataset.foodId)),
-  'edit-item': (b) => openItemEdit(Number(b.dataset.foodId)),
+  'toggle-check': (b) => toggleCheck(b.dataset.foodId),
+  'edit-item': (b) => openItemEdit(b.dataset.foodId),
   'open-quick-add': () => openQuickAdd(),
   'toggle-shopping': () => setShoppingMode(!shoppingMode),
   'rename-list': () => focusTitleEnd(),
@@ -4028,7 +4058,33 @@ async function loadData() {
   await migrateFoodIcons();
   rebuildFoodIndexes();
   lists = await getLists();
-  lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId))));
+
+  // Migrazione: rimuove dal catalogo alimenti eventuali offerte salvate in precedenza nel database come alimenti custom
+  const offerFoodIdsToRemove = new Set();
+  for (const l of lists) {
+    for (const it of l.items) {
+      if (it.fromOffer) {
+        if (!it.food && foodsById.has(it.foodId)) {
+          const f = foodsById.get(it.foodId);
+          it.food = { id: it.foodId, name: f.name, category: f.category, icon: f.icon, isOffer: true };
+          if (f.custom) offerFoodIdsToRemove.add(f.id);
+        } else if (!it.food && it.store) {
+          const { category, icon: iconName } = guessCategoryAndIcon(it.store.product || '');
+          it.food = { id: it.foodId || 'offer_' + it.store.offerId, name: it.store.product || 'Offerta', category, icon: iconName, isOffer: true };
+        }
+      }
+    }
+  }
+  if (offerFoodIdsToRemove.size > 0) {
+    for (const fid of offerFoodIdsToRemove) {
+      await deleteFood(fid).catch(() => {});
+      foods = foods.filter((f) => f.id !== fid);
+      foodsById.delete(fid);
+    }
+    for (const l of lists) await persistList(l);
+  }
+
+  lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId) || i.fromOffer || i.food)));
   const savedOrder = await getSetting('categoryOrder', null);
   categoryOrder = Array.isArray(savedOrder) ? savedOrder : CATEGORIES.map((c) => c.id);
   const al = activeLists();
