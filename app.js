@@ -2210,7 +2210,7 @@ function renderHistory() {
           <div class="list-card-preview">${listPreviewIcons(l, 8)}</div>
         </div>
         <div class="history-actions">
-          <button class="btn btn-primary btn-sm restore-btn" data-action="restore-list" data-list-id="${l.id}" title="Reintegra e copia nelle liste">${icon('arrow-counter-clockwise')}<span>Reintegra lista</span></button>
+          <button class="btn btn-primary btn-sm restore-btn" data-action="restore-list" data-list-id="${l.id}" title="Crea una nuova spesa con questi alimenti">${icon('arrow-counter-clockwise')}<span>Ripeti spesa</span></button>
           <button class="icon-btn" data-action="delete-archived" data-list-id="${l.id}" aria-label="Elimina ${escapeHtml(l.name)}" title="Elimina">${icon('trash')}</button>
         </div>
       </article>`;
@@ -2610,7 +2610,7 @@ function deleteArchived(id) {
 async function restoreArchivedList(id) {
   const source = getList(id);
   if (!source) return;
-  const baseName = source.name.replace(/\s*\(copia\d*\)$/i, '').replace(/\s*\(reintegrata\)$/i, '');
+  const baseName = source.name.replace(/\s*\(copia\d*\)$/i, '').replace(/\s*\((reintegrata|ripetuta)\)$/i, '');
   const existingNames = new Set(activeLists().map((l) => l.name));
   let newName = baseName;
   let counter = 1;
@@ -2629,7 +2629,7 @@ async function restoreArchivedList(id) {
     })),
   });
   navigate('detail', { listId: copy.id });
-  showToast(`“${copy.name}” reintegrata nelle tue liste!`, {
+  showToast(`“${copy.name}” creata! Pronta per la spesa.`, {
     actionLabel: 'Le mie liste',
     onAction: () => navigate('lists'),
   });
