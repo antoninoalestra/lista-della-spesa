@@ -3395,9 +3395,20 @@ function openManageOfferModal(offerId, storeName) {
 
   const badge = $('manageOfferProductBadge');
   if (badge) {
+    const { category, icon: iconName } = guessCategoryAndIcon(offer.name);
+    const cat = categoryById(category);
+    const food = FOODS.find((f) => f.name.toLowerCase() === offer.name.toLowerCase());
+    const iconToUse = food ? food.icon : (iconName || cat?.icon || 'seal-percent');
+    const storeLabel = storeName || offer.chainName || '';
     badge.innerHTML = `
-      <span class="badge-icon">${icon('seal-percent', { weight: 'duotone' })}</span>
-      <span class="badge-text"><strong>${escapeHtml(offer.name)}</strong> · ${formatEuro(offer.price)}${storeName || offer.chainName ? ` (${escapeHtml(storeName || offer.chainName)})` : ''}</span>
+      <div class="target-badge-icon">${icon(iconToUse, { weight: 'duotone' })}</div>
+      <div class="target-badge-info">
+        <div class="target-badge-title">${escapeHtml(offer.name)}</div>
+        <div class="target-badge-sub">
+          <span class="target-badge-price">${formatEuro(offer.price)}</span>
+          ${storeLabel ? `<span class="target-badge-store">${escapeHtml(storeLabel)}</span>` : ''}
+        </div>
+      </div>
     `;
   }
 
@@ -3446,30 +3457,65 @@ function openManageOfferModal(offerId, storeName) {
 function openTargetListModal(offer, storeName) {
   pendingOfferToAdd = { offer, storeName };
   const al = activeLists();
+  const { category, icon: iconName } = guessCategoryAndIcon(offer.name);
+  const cat = categoryById(category);
+  const food = FOODS.find((f) => f.name.toLowerCase() === offer.name.toLowerCase());
+  const iconToUse = food ? food.icon : (iconName || cat?.icon || 'seal-percent');
+
   const badge = $('targetListProductBadge');
   if (badge) {
+    const storeLabel = storeName || offer.chainName || '';
+    const discountBadge = offer.discountPct ? `<span class="badge-discount">−${offer.discountPct}%</span>` : '';
     badge.innerHTML = `
-      <span class="badge-icon">${icon('seal-percent', { weight: 'duotone' })}</span>
-      <span class="badge-text"><strong>${escapeHtml(offer.name)}</strong> · ${formatEuro(offer.price)}${storeName ? ` (${escapeHtml(storeName)})` : ''}</span>
+      <div class="target-badge-icon">${icon(iconToUse, { weight: 'duotone' })}</div>
+      <div class="target-badge-info">
+        <div class="target-badge-title">${escapeHtml(offer.name)}</div>
+        <div class="target-badge-sub">
+          <span class="target-badge-price">${formatEuro(offer.price)}</span>
+          ${discountBadge}
+          ${storeLabel ? `<span class="target-badge-store">${escapeHtml(storeLabel)}</span>` : ''}
+          ${offer.validTo ? `<span class="target-badge-date">fino al ${formatShortDate(offer.validTo)}</span>` : ''}
+        </div>
+      </div>
     `;
   }
+
   const container = $('targetListOptions');
   if (container) {
-    container.innerHTML =
-      al
-        .map(
-          (l) => `
-        <button type="button" class="target-list-choice" data-action="choose-target-list" data-list-id="${l.id}">
-          <div class="choice-icon">${icon('list-checks', { weight: 'duotone' })}</div>
-          <div class="choice-info">
-            <span class="choice-name">${escapeHtml(l.name)}</span>
-            <span class="choice-meta">${plural(l.items.length, 'alimento', 'alimenti')}${l.items.length > 0 ? ` · ${l.items.filter((i) => i.checked).length} presi` : ''}</span>
-          </div>
-          <span class="choice-arrow">${icon('caret-right')}</span>
-        </button>`
-        )
-        .join('') +
-      `
+    const listChoicesHtml = al
+      .map((l) => {
+        const existingItem = l.items.find(
+          (i) => (i.fromOffer && String(i.store?.offerId) === String(offer.id)) ||
+                 String(i.foodId) === 'offer_' + offer.id
+        );
+        const hasOffer = Boolean(existingItem);
+        const existingQty = existingItem ? (Number(existingItem.qty) || 1) : 0;
+
+        if (hasOffer) {
+          return `
+            <button type="button" class="target-list-choice is-disabled" disabled aria-disabled="true" title="Questo alimento è già presente in ${escapeHtml(l.name)}">
+              <div class="choice-icon is-added-icon">${icon('check')}</div>
+              <div class="choice-info">
+                <span class="choice-name">${escapeHtml(l.name)}</span>
+                <span class="choice-meta">${plural(l.items.length, 'alimento', 'alimenti')}${l.items.length > 0 ? ` · ${l.items.filter((i) => i.checked).length} presi` : ''}</span>
+              </div>
+              <span class="choice-already-badge">${icon('check')} Già presente${existingQty > 1 ? ` (×${existingQty})` : ''}</span>
+            </button>`;
+        }
+
+        return `
+          <button type="button" class="target-list-choice" data-action="choose-target-list" data-list-id="${l.id}">
+            <div class="choice-icon">${icon('list-checks', { weight: 'duotone' })}</div>
+            <div class="choice-info">
+              <span class="choice-name">${escapeHtml(l.name)}</span>
+              <span class="choice-meta">${plural(l.items.length, 'alimento', 'alimenti')}${l.items.length > 0 ? ` · ${l.items.filter((i) => i.checked).length} presi` : ''}</span>
+            </div>
+            <span class="choice-action-badge">${icon('plus')} Aggiungi</span>
+          </button>`;
+      })
+      .join('');
+
+    const newChoiceHtml = `
       <button type="button" class="target-list-choice is-new" data-action="choose-target-list" data-list-id="new">
         <div class="choice-icon">${icon('plus')}</div>
         <div class="choice-info">
@@ -3478,7 +3524,20 @@ function openTargetListModal(offer, storeName) {
         </div>
         <span class="choice-arrow">${icon('caret-right')}</span>
       </button>`;
+
+    container.innerHTML = listChoicesHtml + newChoiceHtml;
   }
+
+  const subtitleEl = $('targetListSubtitle');
+  if (subtitleEl) {
+    const allHaveIt = al.length > 0 && al.every((l) =>
+      l.items.some((i) => (i.fromOffer && String(i.store?.offerId) === String(offer.id)) || String(i.foodId) === 'offer_' + offer.id)
+    );
+    subtitleEl.textContent = allHaveIt
+      ? "L'alimento è già in tutte le tue liste. Crea una nuova lista:"
+      : "Scegli in quale lista aggiungere l'offerta";
+  }
+
   openSheet('targetList');
 }
 
@@ -4098,12 +4157,12 @@ const actions = {
     const storeName = b.dataset.storeName || '';
     const all = activeOffers(offersState.data?.offers || []);
     const offer = all.find((o) => String(o.id) === String(offerId));
-    closeTopSheet();
-    if (offer) {
-      openTargetListModal(offer, storeName);
-    }
+    closeSheets(1, () => {
+      if (offer) openTargetListModal(offer, storeName);
+    });
   },
   'choose-target-list': async (b) => {
+    if (b.disabled || b.classList.contains('is-disabled')) return;
     if (!pendingOfferToAdd) {
       closeTopSheet();
       return;

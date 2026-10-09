@@ -3101,57 +3101,102 @@ body.has-sheet .toast-region {
 /* ---------- modale selezione lista per offerte ---------- */
 
 #sheet-targetList .sheet-panel {
-  max-width: 440px;
-  padding: 22px 20px 18px;
+  max-width: 460px;
+  padding: 22px 20px calc(18px + var(--safe-b));
   border-radius: var(--r-sheet, 24px);
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .target-list-product-badge {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 12px;
+  padding: 12px 14px;
   margin-bottom: 14px;
-  border-radius: var(--r-ctl, 12px);
-  background: color-mix(in srgb, var(--basil) 9%, transparent);
+  border-radius: var(--r-ctl, 14px);
+  background: color-mix(in srgb, var(--basil) 9%, var(--surface));
   color: var(--ink);
   font-size: var(--fs-sm);
-  border: 1px solid color-mix(in srgb, var(--basil) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--basil) 20%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
-.target-list-product-badge .badge-icon {
+.target-list-product-badge .target-badge-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--basil) 16%, transparent);
   color: var(--basil);
   flex-shrink: 0;
 }
 
-.target-list-product-badge .badge-text {
+.target-list-product-badge .target-badge-icon .ico {
+  width: 22px;
+  height: 22px;
+}
+
+.target-list-product-badge .target-badge-info {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.target-list-product-badge .target-badge-title {
+  font-weight: 700;
+  font-size: var(--fs-md);
+  color: var(--ink);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.target-list-product-badge .target-badge-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs, 12px);
+  color: var(--muted);
+}
+
+.target-badge-price {
+  font-weight: 750;
+  background: color-mix(in srgb, var(--basil) 16%, transparent);
+  color: var(--basil);
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+}
+
+.target-badge-store {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.target-badge-date {
+  color: var(--muted);
+  opacity: 0.85;
 }
 
 .target-list-options {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 320px;
+  gap: 9px;
+  max-height: 330px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 2px 2px 6px;
+  box-sizing: border-box;
 }
 
 .target-list-choice {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
   padding: 12px 14px;
   border-radius: var(--r-ctl, 14px);
@@ -3161,28 +3206,49 @@ body.has-sheet .toast-region {
   transition: all 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
 }
 
-.target-list-choice:hover {
+.target-list-choice:hover:not(:disabled):not(.is-disabled) {
   background: color-mix(in srgb, var(--basil) 6%, var(--surface));
   border-color: color-mix(in srgb, var(--basil) 35%, transparent);
   transform: translateY(-1px);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.07);
 }
 
-.target-list-choice:active {
+.target-list-choice:active:not(:disabled):not(.is-disabled) {
   transform: scale(0.98);
+}
+
+.target-list-choice.is-disabled,
+.target-list-choice:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  background: color-mix(in srgb, var(--surface) 50%, var(--surface-sunk));
+  border-color: color-mix(in srgb, var(--rule) 70%, transparent);
+  box-shadow: none;
 }
 
 .target-list-choice .choice-icon {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 11px;
   background: color-mix(in srgb, var(--basil) 12%, transparent);
   color: var(--basil);
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.target-list-choice .choice-icon .ico {
+  width: 20px;
+  height: 20px;
+}
+
+.target-list-choice.is-disabled .choice-icon.is-added-icon {
+  background: color-mix(in srgb, var(--basil) 18%, transparent);
+  color: var(--basil);
 }
 
 .target-list-choice.is-new {
@@ -3204,7 +3270,7 @@ body.has-sheet .toast-region {
 }
 
 .target-list-choice .choice-name {
-  font-weight: 600;
+  font-weight: 650;
   font-size: var(--fs-md);
   color: var(--ink);
   overflow: hidden;
@@ -3212,9 +3278,58 @@ body.has-sheet .toast-region {
   white-space: nowrap;
 }
 
+.target-list-choice.is-disabled .choice-name {
+  color: color-mix(in srgb, var(--ink) 85%, var(--muted));
+}
+
 .target-list-choice .choice-meta {
   font-size: var(--fs-xs, 12px);
   color: var(--muted);
+}
+
+.choice-already-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--basil) 14%, var(--surface));
+  color: var(--basil);
+  font-size: 11px;
+  font-weight: 650;
+  border: 1px solid color-mix(in srgb, var(--basil) 30%, transparent);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.choice-already-badge .ico {
+  width: 12px;
+  height: 12px;
+}
+
+.choice-action-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--basil) 12%, transparent);
+  color: var(--basil);
+  font-size: 11px;
+  font-weight: 650;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.target-list-choice:hover:not(:disabled) .choice-action-badge {
+  background: var(--basil);
+  color: #ffffff;
+}
+
+.choice-action-badge .ico {
+  width: 12px;
+  height: 12px;
 }
 
 .target-list-choice .choice-arrow {
@@ -3223,9 +3338,10 @@ body.has-sheet .toast-region {
   color: var(--muted);
   opacity: 0.6;
   transition: transform 0.15s ease, opacity 0.15s ease;
+  flex-shrink: 0;
 }
 
-.target-list-choice:hover .choice-arrow {
+.target-list-choice:hover:not(:disabled) .choice-arrow {
   transform: translateX(3px);
   opacity: 1;
   color: var(--basil);
