@@ -3102,7 +3102,8 @@ body.has-sheet .toast-region {
 
 #sheet-targetList .sheet-panel {
   max-width: 460px;
-  padding: 22px 20px calc(18px + var(--safe-b));
+  max-height: min(88dvh, 660px);
+  padding: 22px 20px calc(28px + var(--safe-b));
   border-radius: var(--r-sheet, 24px);
   overflow-x: hidden;
   box-sizing: border-box;
@@ -3185,11 +3186,12 @@ body.has-sheet .toast-region {
 .target-list-options {
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  max-height: 330px;
+  gap: 10px;
+  max-height: min(440px, 54dvh);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2px 2px 6px;
+  padding: 4px 2px 14px 2px;
+  margin: 0;
   box-sizing: border-box;
 }
 
@@ -3350,18 +3352,24 @@ body.has-sheet .toast-region {
 /* ---------- modale gestione offerta già in lista ---------- */
 
 #sheet-manageOffer .sheet-panel {
-  max-width: 440px;
-  padding: 22px 20px 20px;
+  max-width: 460px;
+  max-height: min(88dvh, 660px);
+  padding: 22px 20px calc(28px + var(--safe-b));
   border-radius: var(--r-sheet, 24px);
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .manage-offer-content {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 340px;
+  max-height: min(440px, 54dvh);
   overflow-y: auto;
-  padding: 2px 2px 4px;
+  overflow-x: hidden;
+  padding: 4px 2px 14px 2px;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .manage-offer-card {
