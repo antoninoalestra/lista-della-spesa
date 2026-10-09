@@ -597,7 +597,24 @@ select {
 .history-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.history-actions .restore-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.history-actions .restore-btn .ico {
+  width: 16px;
+  height: 16px;
 }
 
 /* ---------- catalogo e selettore alimenti ---------- */
@@ -1146,24 +1163,72 @@ select {
 }
 
 .item-qty {
-  display: grid;
-  place-items: center;
-  min-width: 48px;
-  padding: 0 6px;
-  color: var(--cat);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  text-decoration: none;
+  color: inherit;
+}
+
+.item-qty .qty-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--fs-xs);
   font-weight: 600;
-  font-size: var(--fs-md);
+  transition: all 0.15s ease;
+}
+
+.item-qty:hover .qty-pill {
+  border-color: var(--cat, var(--basil));
+  color: var(--cat, var(--basil));
+  background: var(--surface-1);
+}
+
+.item-qty.is-empty .qty-ico {
+  width: 15px;
+  height: 15px;
+  color: var(--cat, var(--basil));
+}
+
+.item-qty.is-empty .qty-text {
+  font-size: 11px;
+  letter-spacing: 0.2px;
+}
+
+.item-qty.has-qty .qty-pill {
+  background: color-mix(in srgb, var(--cat, var(--basil)) 12%, transparent);
+  border-color: color-mix(in srgb, var(--cat, var(--basil)) 35%, transparent);
+  color: var(--cat, var(--basil));
+}
+
+.item-qty.has-qty .qty-val {
+  font-size: var(--fs-sm);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
-.item-qty.is-empty {
-  color: var(--rule-strong);
+.item-qty.has-qty .qty-edit-ico {
+  width: 13px;
+  height: 13px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
 }
 
-.item-qty.is-empty .ico {
-  width: 19px;
-  height: 19px;
+.item-qty.has-qty:hover .qty-edit-ico {
+  opacity: 1;
 }
 
 .item.checked .check-box {
