@@ -1827,8 +1827,43 @@ function listProgress(list) {
   return { total, checked, pct: total === 0 ? 0 : Math.round((checked / total) * 100) };
 }
 
+const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('spesa_sync') : null;
+
+function notifyDataChange() {
+  try {
+    syncChannel?.postMessage({ type: 'update', timestamp: Date.now() });
+  } catch (_) {}
+}
+
+if (syncChannel) {
+  syncChannel.onmessage = async (e) => {
+    if (e.data?.type === 'update') {
+      lists = await getLists();
+      lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId))));
+      render();
+    }
+  };
+}
+
+// Quando l'app o la scheda torna in primo piano (es. cambio scheda o riapertura da standby su iPhone)
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    lists = await getLists();
+    lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId))));
+    render();
+  }
+});
+window.addEventListener('focus', async () => {
+  lists = await getLists();
+  lists.forEach((l) => (l.items = l.items.filter((i) => foodsById.has(i.foodId))));
+  render();
+});
+
 function persistList(list) {
-  if (list) saveList(list);
+  if (list) {
+    saveList(list);
+    notifyDataChange();
+  }
 }
 
 function rebuildFoodIndexes() {
@@ -2612,6 +2647,7 @@ function deleteSelectedList() {
     await deleteList(list.id);
     lists = lists.filter((l) => l.id !== list.id);
     selectedListId = null;
+    notifyDataChange();
     leaveDetail();
     showToast('Lista eliminata');
   });
@@ -2623,6 +2659,7 @@ function deleteArchived(id) {
   confirmAction(`Eliminare “${list.name}” dallo storico?`, async () => {
     await deleteList(id);
     lists = lists.filter((l) => l.id !== id);
+    notifyDataChange();
     render();
   });
 }
