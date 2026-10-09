@@ -393,6 +393,22 @@
   </div>
 </div>
 
+<!-- Selezione lista per offerta -->
+<div id="sheet-targetList" class="sheet sheet-small" role="dialog" aria-modal="true" aria-labelledby="targetListTitle" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <div>
+        <h2 id="targetListTitle" class="sheet-title">Aggiungi alla lista</h2>
+        <p id="targetListSubtitle" class="sheet-subtitle">Scegli in quale lista aggiungere l'offerta</p>
+      </div>
+      <button class="icon-btn" data-action="close-sheet" aria-label="Chiudi"><i data-icon="x"></i></button>
+    </div>
+    <div id="targetListProductBadge" class="target-list-product-badge"></div>
+    <div id="targetListOptions" class="target-list-options sheet-scroll"></div>
+  </div>
+</div>
+
 <!-- Conferma -->
 <div id="sheet-confirm" class="sheet sheet-small" role="alertdialog" aria-modal="true" aria-labelledby="confirmMessage" hidden>
   <div class="sheet-panel">

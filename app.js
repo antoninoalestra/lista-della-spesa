@@ -485,13 +485,16 @@ function groupListItems(list, foodsById, categories, { chainColors = {} } = {}) 
     const food = foodsById.get(item.foodId);
     if (!food) continue;
     const st = item.store;
-    const key = byStore ? (st ? `store:${st.chain}` : 'store:') : food.category;
+    const isOffer = item.fromOffer || Boolean(st && st.offerId);
+    const key = byStore ? (st ? `store:${st.chain}` : 'store:') : isOffer ? 'offerte' : food.category;
     if (!groups.has(key)) {
       const cat = byStore
         ? st
           ? { id: key, name: st.chainName, color: chainColors[st.chain] || '#2f5a43', icon: 'storefront', store: true }
           : { id: key, name: 'Senza negozio', color: '#736d61', icon: 'basket' }
-        : catById.get(food.category);
+        : isOffer
+          ? { id: 'offerte', name: 'Offerte', color: '#d45b34', icon: 'seal-percent' }
+          : catById.get(food.category);
       if (!cat) continue;
       groups.set(key, { cat, items: [] });
     }
@@ -502,7 +505,7 @@ function groupListItems(list, foodsById, categories, { chainColors = {} } = {}) 
       entry.price = st.price;
       entry.note = [qty, item.note].filter(Boolean).join(', ');
     }
-    entry.color = (catById.get(food.category) || {}).color;
+    entry.color = isOffer ? '#d45b34' : (catById.get(food.category) || {}).color;
     groups.get(key).items.push(entry);
   }
   let order;
@@ -511,7 +514,8 @@ function groupListItems(list, foodsById, categories, { chainColors = {} } = {}) 
     const rank = (k) => (k === 'store:' ? 1e6 : storeOrder.includes(k) ? storeOrder.indexOf(k) : 1e3);
     order = [...groups.keys()].sort((a, b) => rank(a) - rank(b));
   } else {
-    order = categories.map((c) => c.id).filter((id) => groups.has(id));
+    const catOrder = categories.map((c) => c.id).filter((id) => groups.has(id));
+    order = groups.has('offerte') ? ['offerte', ...catOrder] : catOrder;
   }
   return order.map((k) => {
     const g = groups.get(k);
@@ -2373,7 +2377,7 @@ function renderDetail({ animate = false } = {}) {
             ? `<span class="item-store${expired ? ' is-expired' : ''}">${byStore ? '' : `${escapeHtml(st.chainName)} · `}${formatEuro(st.price)}${st.unitPrice ? ` · ${escapeHtml(st.unitPrice)}` : ''}${expired ? ' · offerta scaduta' : st.validTo ? ` · fino al ${formatShortDate(st.validTo)}` : ''}</span>`
             : '';
           return `
-          <li class="item${item.checked ? ' checked' : ''}" data-food-id="${food.id}" style="--cat:${cat.color}">
+          <li class="item${item.checked ? ' checked' : ''}" data-food-id="${food.id}" style="--cat:${g.isOffers ? g.color : cat.color}">
             <div class="item-swipe-bg" aria-hidden="true">${icon('trash')}<span>Togli</span></div>
             <div class="item-row">
               <button type="button" class="item-check" data-action="toggle-check" data-food-id="${food.id}" role="checkbox" aria-checked="${!!item.checked}" aria-label="${escapeHtml(food.name)}">
@@ -2400,10 +2404,11 @@ function renderDetail({ animate = false } = {}) {
       const total = entries.reduce((s, e) => s + (e.item.store && !e.item.checked ? e.item.store.price : 0), 0);
       const count = byStore && g.store && total > 0 ? `≈ ${formatEuro(total)} · ${done}/${entries.length}` : `${done}/${entries.length}`;
       return `
-        <section class="detail-group${g.store ? ' is-store' : ''}" style="--cat:${g.color}">
+        <section class="detail-group${g.store ? ' is-store' : ''}${g.isOffers ? ' is-offers' : ''}" style="--cat:${g.color}">
           <h2 class="detail-group-title">
             <span class="cat-icon">${icon(g.icon, { weight: 'duotone' })}</span>
             <span>${escapeHtml(g.name)}</span>
+            ${g.isOffers ? '<span class="badge-group-offer">Offerta</span>' : ''}
             <span class="detail-group-count">${count}</span>
           </h2>
           <ul class="item-list">${rows}</ul>
@@ -2429,9 +2434,24 @@ function renderDetail({ animate = false } = {}) {
 function groupItemsForDetail(list, byStore) {
   const entries = list.items.map((item) => ({ item, food: foodsById.get(item.foodId) })).filter((e) => e.food);
   if (!byStore) {
-    return orderedCategories()
-      .map((cat) => ({ name: cat.name, icon: cat.icon, color: cat.color, entries: entries.filter((e) => e.food.category === cat.id) }))
+    const offerEntries = entries.filter((e) => e.item.fromOffer || Boolean(e.item.store && e.item.store.offerId));
+    const regularEntries = entries.filter((e) => !e.item.fromOffer && !Boolean(e.item.store && e.item.store.offerId));
+
+    const categoryGroups = orderedCategories()
+      .map((cat) => ({ name: cat.name, icon: cat.icon, color: cat.color, entries: regularEntries.filter((e) => e.food.category === cat.id) }))
       .filter((g) => g.entries.length);
+
+    if (offerEntries.length > 0) {
+      const offerGroup = {
+        name: 'Offerte',
+        icon: 'seal-percent',
+        color: '#d45b34',
+        isOffers: true,
+        entries: offerEntries,
+      };
+      return [offerGroup, ...categoryGroups];
+    }
+    return categoryGroups;
   }
   const groups = new Map();
   for (const e of entries) {
@@ -2620,12 +2640,13 @@ async function restoreArchivedList(id) {
   }
   const copy = await createList({
     name: newName,
-    items: source.items.map(({ foodId, qty, note, store }) => ({
+    items: source.items.map(({ foodId, qty, note, store, fromOffer }) => ({
       foodId,
       checked: false,
       ...(qty ? { qty } : {}),
       ...(note ? { note } : {}),
       ...(store ? { store } : {}),
+      ...(fromOffer ? { fromOffer } : {}),
     })),
   });
   navigate('detail', { listId: copy.id });
@@ -2641,7 +2662,7 @@ async function copyListToNew(id) {
   const name = source.archived ? source.name : `${source.name} (copia)`;
   const copy = await createList({
     name: activeLists().some((l) => l.name === name) ? `${name} (copia)` : name,
-    items: source.items.map(({ foodId, qty, note }) => ({ foodId, checked: false, ...(qty ? { qty } : {}), ...(note ? { note } : {}) })),
+    items: source.items.map(({ foodId, qty, note, store, fromOffer }) => ({ foodId, checked: false, ...(qty ? { qty } : {}), ...(note ? { note } : {}), ...(store ? { store } : {}), ...(fromOffer ? { fromOffer } : {}) })),
   });
   navigate('detail', { listId: copy.id, replace: route.view === 'detail' });
   showToast(source.archived ? 'Lista riaperta con tutti gli alimenti da prendere' : 'Lista duplicata');
@@ -3211,9 +3232,49 @@ function getOffersForStore(store) {
   return staples.sort((a, b) => a.price - b.price);
 }
 
-// Aggiunge un alimento in offerta direttamente alla lista della spesa attiva
-async function addOfferToList(offer, storeName) {
-  const list = await ensureTargetList();
+let pendingOfferToAdd = null;
+
+function openTargetListModal(offer, storeName) {
+  pendingOfferToAdd = { offer, storeName };
+  const al = activeLists();
+  const badge = $('targetListProductBadge');
+  if (badge) {
+    badge.innerHTML = `
+      <span class="badge-icon">${icon('seal-percent', { weight: 'duotone' })}</span>
+      <span class="badge-text"><strong>${escapeHtml(offer.name)}</strong> · ${formatEuro(offer.price)}${storeName ? ` (${escapeHtml(storeName)})` : ''}</span>
+    `;
+  }
+  const container = $('targetListOptions');
+  if (container) {
+    container.innerHTML =
+      al
+        .map(
+          (l) => `
+        <button type="button" class="target-list-choice" data-action="choose-target-list" data-list-id="${l.id}">
+          <div class="choice-icon">${icon('list-checks', { weight: 'duotone' })}</div>
+          <div class="choice-info">
+            <span class="choice-name">${escapeHtml(l.name)}</span>
+            <span class="choice-meta">${plural(l.items.length, 'alimento', 'alimenti')}${l.items.length > 0 ? ` · ${l.items.filter((i) => i.checked).length} presi` : ''}</span>
+          </div>
+          <span class="choice-arrow">${icon('caret-right')}</span>
+        </button>`
+        )
+        .join('') +
+      `
+      <button type="button" class="target-list-choice is-new" data-action="choose-target-list" data-list-id="new">
+        <div class="choice-icon">${icon('plus')}</div>
+        <div class="choice-info">
+          <span class="choice-name">Crea nuova lista</span>
+          <span class="choice-meta">Aggiungi questa offerta in una nuova lista</span>
+        </div>
+        <span class="choice-arrow">${icon('caret-right')}</span>
+      </button>`;
+  }
+  openSheet('targetList');
+}
+
+// Aggiunge un alimento in offerta a una lista specifica (nella sezione Offerte)
+async function addOfferToSpecificList(offer, storeName, list) {
   if (!list) return;
   const searchName = offer.foodName || offer.name;
   let food = foods.find((f) => normalizeName(f.name) === normalizeName(searchName));
@@ -3240,15 +3301,33 @@ async function addOfferToList(offer, storeName) {
       checked: false,
       note: noteText,
       store: storeData,
+      fromOffer: true,
     };
     list.items.push(item);
   } else {
     item.note = noteText;
     item.store = storeData;
+    item.fromOffer = true;
   }
   await persistList(list);
   haptic(10);
-  showToast(`Aggiunto a "${list.name}": ${offer.name} (${formatEuro(offer.price)})`);
+  showToast(`Aggiunto a “${list.name}”: ${offer.name} (${formatEuro(offer.price)})`, {
+    actionLabel: 'Apri lista',
+    onAction: () => navigate('detail', { listId: list.id }),
+  });
+}
+
+// Aggiunge un alimento in offerta: se ci sono più liste attive apre la modale di selezione
+async function addOfferToList(offer, storeName) {
+  const al = activeLists();
+  if (al.length > 1) {
+    openTargetListModal(offer, storeName);
+  } else if (al.length === 1) {
+    await addOfferToSpecificList(offer, storeName, al[0]);
+  } else {
+    const newList = await createList();
+    await addOfferToSpecificList(offer, storeName, newList);
+  }
 }
 
 let offersRequest = 0;
@@ -3665,7 +3744,10 @@ const actions = {
   'remove-edit-item': () => removeEditingItem(),
   'remove-item-store': () => {
     const item = getSelectedList()?.items.find((i) => i.foodId === editingFoodId);
-    if (item) delete item.store;
+    if (item) {
+      delete item.store;
+      delete item.fromOffer;
+    }
     $('itemStoreRow').classList.add('hidden');
   },
 
@@ -3710,6 +3792,26 @@ const actions = {
     const offer = all.find((o) => o.id === offerId);
     if (!offer) return;
     await addOfferToList(offer, storeName);
+  },
+  'choose-target-list': async (b) => {
+    if (!pendingOfferToAdd) {
+      closeTopSheet();
+      return;
+    }
+    const listId = b.dataset.listId;
+    const { offer, storeName } = pendingOfferToAdd;
+    pendingOfferToAdd = null;
+    closeTopSheet();
+
+    let targetList;
+    if (listId === 'new') {
+      targetList = await createList();
+    } else {
+      targetList = getList(Number(listId));
+    }
+    if (targetList) {
+      await addOfferToSpecificList(offer, storeName, targetList);
+    }
   },
   'offers-filter-cat': (b) => {
     offersState.selectedCategory = b.dataset.categoryId || null;
