@@ -1,0 +1,60 @@
+Ciao. Devo ridurre il progetto in C:\Users\nina\Desktop\lista della spesa (PWA "Spesa",
+vanilla JS, nessun build) a soli 3 file: index.html, style.css, app.js. L'app deve funzionare
+esattamente come ora. Le decisioni sono già prese, non serve rifare domande:
+
+- Cartella di destinazione: crea C:\Users\ninoa\Desktop\spesa-semplice\ con solo i 3 file.
+  La cartella originale NON va modificata né cancellata.
+- Offerte: incorpora i dati attuali nel JS. Niente più aggiornamento automatico: pipeline/,
+  config/, cache/ e .github/ non vengono portati.
+- Offline/installazione: si rinuncia. Niente sw.js, manifest.webmanifest né icone PNG.
+- Font: incorporati in style.css in base64.
+
+PASSI
+
+1. style.css = copia di css/style.css. Nelle 3 regole @font-face (righe ~8, 16, 24) sostituisci
+   url('../fonts/<file>.woff2') con url(data:font/woff2;base64,...) leggendo i file in fonts/
+   (geist-latin-wght-normal, fraunces-latin-full-normal, fraunces-latin-full-italic).
+   Servono anche per la foto della lista: js/export.js usa "Geist"/"Fraunces" tramite document.fonts.load.
+
+2. app.js = concatenazione dei file di js/ nell'ordine dei <script> di index.html:
+   icons.js → seed-data.js → db.js → export.js → geo.js → offers.js → app.js,
+   ciascuno preceduto da un commento di sezione (es. // ===== icone =====). Sono script classici
+   senza import/export e condividono lo scope globale, quindi concatenarli è sicuro.
+   Modifiche mirate:
+   a) offers.js righe 8-27: elimina loadJson e la gestione dell'header x-spesa-stale.
+      - loadOffersConfig() restituisce OFFERS_CONFIG = { chains: <config/chains.json>, cities: <config/cities.json> }.
+      - loadCityOffers(cityId) restituisce null se OFFERS_DATA[cityId] non esiste, altrimenti
+        { ...OFFERS_DATA[cityId], stale: ageDays > OFFERS_STALE_DAYS, meta: OFFERS_META },
+        con ageDays calcolato da updatedAt come fa oggi. Mantieni le funzioni async: app.js
+        le usa con .then.
+      - OFFERS_DATA = { roma: <data/offers/roma.json minificato> } e OFFERS_META = <data/meta.json>.
+        Mettili IN FONDO al file, in una sezione "// ===== dati offerte (fissi al 7/10/2026) =====".
+        Sono const: le funzioni li leggono solo quando vengono chiamate (dopo init asincrono),
+        ma verifica che nessun codice top-level li usi prima della loro dichiarazione (TDZ).
+        Se ci sono dubbi, mettili subito prima della sezione offers.
+   b) app.js renderOffers (righe ~1599-1608): rimuovi il blocco `if (location.protocol === 'file:')`
+      con il messaggio "Apri l'app dal server". Con i dati incorporati funziona anche da file://.
+   c) app.js: rimuovi la sezione "SERVICE WORKER E AGGIORNAMENTI" (updateRequested, promptUpdate,
+      registerServiceWorker, righe ~2206-2245) e la chiamata registerServiceWorker() in init().
+   Geocoding e ricerca negozi (geo.js: Nominatim/Overpass) restano invariati.
+
+3. index.html = copia dell'attuale con:
+   - <link rel="stylesheet" href="style.css" />
+   - un solo <script src="app.js"></script> al posto dei 7
+   - rimossi <link rel="manifest"> e apple-touch-icon
+   - favicon come data-URI SVG inline ricavato da icons/icon.svg
+
+VERIFICA (obbligatoria, riportami i risultati reali)
+- Apri la nuova cartella sia via server statico temporaneo sia direttamente da file://.
+- Con Playwright (playwright-core è in node_modules del progetto originale; Chrome è in
+  C:\Program Files\Google\Chrome\Application) prova: crea lista, aggiungi alimenti dal catalogo
+  e dall'aggiunta rapida, quantità e nota, modalità spesa, archivia → storico, foto della lista
+  (controlla che usi i font giusti), salva backup, ordina reparti, scheda Offerte con un
+  indirizzo di Roma (negozi, "La mia lista", "Migliori offerte").
+- Nessun errore in console e nessuna richiesta a file locali inesistenti
+  (fonts/, data/, config/, sw.js, icons/).
+- Confronta uno screenshot della nuova versione con l'originale nella stessa vista.
+
+Alla fine ricordami che le liste salvate nel browser dipendono dall'indirizzo da cui apro
+l'app: per portarle nella nuova versione devo fare "Salva backup" nella vecchia e
+"Ripristina backup" nella nuova.

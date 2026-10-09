@@ -1,0 +1,38 @@
+name: Aggiornamento Automatico Offerte
+
+on:
+  schedule:
+    # Esegue ogni giovedì mattina alle 04:00 UTC (06:00 italiane)
+    - cron: '0 4 * * 4'
+  workflow_dispatch:
+    # Consente di avviare l'aggiornamento manualmente dal pannello GitHub
+
+permissions:
+  contents: write
+
+jobs:
+  update-offers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scarica il codice del repository
+        uses: actions/checkout@v4
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Esegui lo scraper delle offerte volantini
+        run: node tools/update-offers.mjs
+
+      - name: Esegui commit e push se ci sono nuovi dati
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add app.js
+          if git diff --staged --quiet; then
+            echo "Nessun nuovo volantino da aggiornare."
+          else
+            git commit -m "Aggiornamento automatico offerte volantini [skip ci]"
+            git push
+          fi

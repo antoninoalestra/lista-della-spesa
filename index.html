@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#171b18" media="(prefers-color-scheme: dark)" />
+<meta name="description" content="Liste della spesa per categoria, con catalogo alimenti, storico e foto da condividere." />
+<title>Spesa</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%20%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%22116%22%20fill%3D%22%232f5a43%22%2F%3E%20%3Cg%20transform%3D%22translate(106%20100)%20scale(1.17)%22%20fill%3D%22%23f3efe6%22%3E%20%3Cpath%20d%3D%22M232%2C88%2C216.93%2C201.06A8%2C8%2C0%2C0%2C1%2C209%2C208H47a8%2C8%2C0%2C0%2C1-7.93-6.94L24%2C88Z%22%20opacity%3D%22.22%22%2F%3E%20%3Cpath%20d%3D%22M136%2C120v56a8%2C8%2C0%2C0%2C1-16%2C0V120a8%2C8%2C0%2C0%2C1%2C16%2C0Zm36.84-.8-5.6%2C56A8%2C8%2C0%2C0%2C0%2C174.4%2C184a7.32%2C7.32%2C0%2C0%2C0%2C.81%2C0%2C8%2C8%2C0%2C0%2C0%2C7.95-7.2l5.6-56a8%2C8%2C0%2C0%2C0-15.92-1.6Zm-89.68%2C0a8%2C8%2C0%2C0%2C0-15.92%2C1.6l5.6%2C56a8%2C8%2C0%2C0%2C0%2C8%2C7.2%2C7.32%2C7.32%2C0%2C0%2C0%2C.81%2C0%2C8%2C8%2C0%2C0%2C0%2C7.16-8.76ZM239.93%2C89.06%2C224.86%2C202.12A16.06%2C16.06%2C0%2C0%2C1%2C209%2C216H47a16.06%2C16.06%2C0%2C0%2C1-15.86-13.88L16.07%2C89.06A8%2C8%2C0%2C0%2C1%2C24%2C80H68.37L122%2C18.73a8%2C8%2C0%2C0%2C1%2C12%2C0L187.63%2C80H232a8%2C8%2C0%2C0%2C1%2C7.93%2C9.06ZM89.63%2C80h76.74L128%2C36.15ZM222.86%2C96H33.14L47%2C200H209Z%22%2F%3E%20%3C%2Fg%3E%20%3C%2Fsvg%3E" type="image/svg+xml" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app">
+
+  <header class="app-header">
+    <a class="wordmark" href="#/liste" aria-label="Spesa, torna alle liste">Spesa</a>
+
+    <nav class="top-nav" aria-label="Sezioni">
+      <button class="tab-btn" data-action="go-tab" data-view="lists"><i data-icon="list-checks"></i><span>Liste</span></button>
+      <button class="tab-btn" data-action="go-tab" data-view="catalog"><i data-icon="squares-four"></i><span>Catalogo</span></button>
+      <button class="tab-btn" data-action="go-tab" data-view="offers"><i data-icon="seal-percent"></i><span>Offerte</span></button>
+      <button class="tab-btn" data-action="go-tab" data-view="history"><i data-icon="clock-counter-clockwise"></i><span>Storico</span></button>
+    </nav>
+
+    <div class="header-actions">
+      <button class="btn btn-primary header-new-btn" data-action="new-list"><i data-icon="plus"></i><span>Nuova lista</span></button>
+      <button class="icon-btn" data-action="open-sheet" data-sheet="appMenu" aria-label="Altre opzioni" title="Altre opzioni"><i data-icon="dots-three"></i></button>
+    </div>
+  </header>
+
+  <main class="views">
+
+    <!-- LE MIE LISTE -->
+    <section id="view-lists" class="view" aria-labelledby="listsTitle">
+      <h1 id="listsTitle" class="page-title">Le tue liste</h1>
+      <div id="activeListsGrid" class="lists-grid"></div>
+      <div id="noActiveLists" class="empty-state hidden">
+        <p class="empty-title">Nessuna lista aperta</p>
+        <p class="empty-text">Crea una lista e aggiungi gli alimenti dal catalogo.</p>
+        <button class="btn btn-primary" data-action="new-list"><i data-icon="plus"></i>Nuova lista</button>
+      </div>
+    </section>
+
+    <!-- STORICO -->
+    <section id="view-history" class="view hidden" aria-labelledby="historyTitle">
+      <h1 id="historyTitle" class="page-title">Storico</h1>
+      <div id="historyItems" class="history-list"></div>
+      <div id="emptyHistory" class="empty-state hidden">
+        <p class="empty-title">Ancora niente qui</p>
+        <p class="empty-text">Quando archivi una lista finisce nello storico, pronta da riusare.</p>
+      </div>
+    </section>
+
+    <!-- CATALOGO -->
+    <section id="view-catalog" class="view hidden" aria-labelledby="catalogTitle">
+      <div class="page-head">
+        <h1 id="catalogTitle" class="page-title">Catalogo</h1>
+        <div class="page-head-actions">
+          <button class="icon-btn" data-action="open-sheet" data-sheet="categoryOrder" aria-label="Ordina categorie" title="Ordina categorie"><i data-icon="arrows-down-up"></i></button>
+          <button class="btn btn-quiet" data-action="new-food"><i data-icon="plus"></i><span>Nuovo alimento</span></button>
+        </div>
+      </div>
+
+      <div class="catalog-toolbar">
+        <label class="target-picker">
+          <span>Aggiungi a</span>
+          <select id="targetListSelect" aria-label="Lista in cui aggiungere"></select>
+          <i data-icon="caret-down" class="select-caret"></i>
+        </label>
+        <div class="search-box">
+          <i data-icon="magnifying-glass"></i>
+          <input id="catalogSearch" type="search" placeholder="Cerca o aggiungi un alimento" autocomplete="off" enterkeyhint="done" />
+        </div>
+      </div>
+
+      <div id="catalogPicker" class="food-picker" data-picker="catalog"></div>
+    </section>
+
+    <!-- OFFERTE -->
+    <section id="view-offers" class="view hidden" aria-labelledby="offersTitle">
+      <div class="page-head">
+        <h1 id="offersTitle" class="page-title">Offerte</h1>
+      </div>
+
+      <button id="placeChip" class="place-chip" data-action="open-place">
+        <i data-icon="map-pin"></i>
+        <span class="place-chip-text">
+          <span id="placeLabel" class="place-chip-label">Scegli una posizione</span>
+          <span id="placeMeta" class="place-chip-meta">Cerca i supermercati intorno a te</span>
+        </span>
+        <i data-icon="caret-right"></i>
+      </button>
+
+      <div id="quickRadiusBar" class="quick-radius-bar" role="radiogroup" aria-label="Raggio di ricerca">
+        <span class="quick-radius-label">Raggio:</span>
+        <button type="button" class="preset-pill" data-action="set-radius" data-km="0.5">500 m</button>
+        <button type="button" class="preset-pill" data-action="set-radius" data-km="1">1 km</button>
+        <button type="button" class="preset-pill" data-action="set-radius" data-km="2">2 km</button>
+        <button type="button" class="preset-pill" data-action="set-radius" data-km="3">3 km</button>
+        <button type="button" class="preset-pill" data-action="set-radius" data-km="5">5 km</button>
+      </div>
+
+      <div id="offersStatus" class="offers-status hidden"></div>
+
+      <div id="offersBody" class="offers-body"></div>
+
+      <p class="offers-credits">
+        Negozi © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>.
+        <span id="offersSource"></span>
+        I prezzi dei volantini valgono per la città: nei singoli punti vendita (soprattutto Conad e Coop) possono cambiare.
+      </p>
+    </section>
+
+    <!-- DETTAGLIO LISTA -->
+    <section id="view-detail" class="view view-detail hidden">
+      <div class="detail-topbar">
+        <button class="icon-btn" data-action="back" aria-label="Indietro" title="Indietro"><i data-icon="caret-left"></i></button>
+        <div class="detail-title-wrap">
+          <h1 id="detailTitle" class="detail-title" contenteditable="true" spellcheck="false" aria-label="Nome della lista"></h1>
+          <button class="icon-btn icon-btn-sm rename-btn" data-action="rename-list" aria-label="Rinomina lista" title="Rinomina"><i data-icon="pencil-simple"></i></button>
+        </div>
+        <button class="icon-btn" data-action="open-sheet" data-sheet="listMenu" aria-label="Azioni lista" title="Azioni lista"><i data-icon="dots-three"></i></button>
+      </div>
+
+      <div class="detail-summary">
+        <p id="detailMeta" class="detail-meta"></p>
+        <div class="progress" aria-hidden="true"><div id="detailProgress" class="progress-fill"></div></div>
+      </div>
+
+      <div id="doneBanner" class="done-banner hidden" role="status">
+        <i data-icon="flag-checkered"></i>
+        <div>
+          <p class="done-title">Spesa completata</p>
+          <p class="done-text">Hai preso tutto. Archivia la lista per ritrovarla nello storico.</p>
+        </div>
+        <button class="btn btn-primary" data-action="archive-list">Archivia</button>
+      </div>
+
+      <div class="page-sheet">
+        <div id="detailEmpty" class="empty-state hidden">
+          <p class="empty-title">Lista vuota</p>
+          <p class="empty-text">Aggiungi gli alimenti che ti servono: li trovi ordinati per reparto.</p>
+          <button class="btn btn-primary" data-action="open-quick-add"><i data-icon="plus"></i>Aggiungi alimenti</button>
+        </div>
+        <div id="detailItems" class="detail-items"></div>
+      </div>
+
+      <div class="detail-bar">
+        <button id="shopModeBtn" class="btn btn-quiet" data-action="toggle-shopping"><i data-icon="shopping-cart-simple"></i><span>Inizia la spesa</span></button>
+        <button id="detailAddBtn" class="btn btn-primary" data-action="open-quick-add"><i data-icon="plus"></i><span>Aggiungi alimenti</span></button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- NAVIGAZIONE MOBILE -->
+<nav class="bottom-nav" aria-label="Sezioni">
+  <button class="bottom-tab" data-action="go-tab" data-view="lists"><i data-icon="list-checks"></i><span>Liste</span></button>
+  <button class="bottom-tab" data-action="go-tab" data-view="catalog"><i data-icon="squares-four"></i><span>Catalogo</span></button>
+  <button class="bottom-tab" data-action="go-tab" data-view="offers"><i data-icon="seal-percent"></i><span>Offerte</span></button>
+  <button class="bottom-tab" data-action="go-tab" data-view="history"><i data-icon="clock-counter-clockwise"></i><span>Storico</span></button>
+</nav>
+
+<button id="fab" class="fab" data-action="new-list"><i data-icon="plus"></i><span>Nuova lista</span></button>
+<button id="selectionPill" class="selection-pill hidden" data-action="open-target-list"></button>
+
+<div class="toast-region" aria-live="polite">
+  <div id="toast" class="toast">
+    <span id="toastMsg" class="toast-msg"></span>
+    <button id="toastAction" class="toast-action hidden" type="button"></button>
+  </div>
+</div>
+
+<!-- ============ SHEET ============ -->
+
+<!-- Aggiunta rapida alla lista aperta -->
+<div id="sheet-quickAdd" class="sheet sheet-tall" role="dialog" aria-modal="true" aria-labelledby="quickAddTitle" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <div>
+        <h2 id="quickAddTitle" class="sheet-title">Aggiungi alimenti</h2>
+        <p id="quickAddSubtitle" class="sheet-subtitle"></p>
+      </div>
+      <button class="icon-btn" data-action="close-sheet" aria-label="Chiudi"><i data-icon="x"></i></button>
+    </div>
+    <div class="search-box">
+      <i data-icon="magnifying-glass"></i>
+      <input id="quickAddSearch" type="search" placeholder="Cerca o aggiungi un alimento" autocomplete="off" enterkeyhint="done" />
+    </div>
+    <div id="quickAddPicker" class="food-picker sheet-scroll" data-picker="quick"></div>
+    <div class="sheet-footer">
+      <span id="quickAddCount" class="sheet-footer-note"></span>
+      <button class="btn btn-primary" data-action="close-sheet">Fatto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quantità e nota di un alimento in lista -->
+<div id="sheet-itemEdit" class="sheet" role="dialog" aria-modal="true" aria-labelledby="itemEditName" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <div class="item-edit-head">
+        <span id="itemEditIcon" class="item-edit-icon"></span>
+        <div>
+          <h2 id="itemEditName" class="sheet-title"></h2>
+          <p id="itemEditCategory" class="sheet-subtitle"></p>
+        </div>
+      </div>
+      <button class="icon-btn" data-action="close-sheet" aria-label="Chiudi"><i data-icon="x"></i></button>
+    </div>
+
+    <div class="form-field">
+      <label for="qtyInput">Quantità</label>
+      <div class="qty-row">
+        <div class="stepper">
+          <button type="button" class="icon-btn" data-action="qty-step" data-dir="-1" aria-label="Diminuisci"><i data-icon="minus"></i></button>
+          <input id="qtyInput" type="text" inputmode="text" placeholder="1" autocomplete="off" />
+          <button type="button" class="icon-btn" data-action="qty-step" data-dir="1" aria-label="Aumenta"><i data-icon="plus"></i></button>
+        </div>
+        <div class="qty-presets">
+          <button type="button" class="preset" data-action="qty-preset" data-qty="500 g">500 g</button>
+          <button type="button" class="preset" data-action="qty-preset" data-qty="1 kg">1 kg</button>
+          <button type="button" class="preset" data-action="qty-preset" data-qty="1 conf.">1 conf.</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label for="noteInput">Nota</label>
+      <input id="noteInput" type="text" placeholder="Marca, tipo, offerta…" autocomplete="off" enterkeyhint="done" />
+    </div>
+
+    <div id="itemStoreRow" class="item-store-row hidden">
+      <i data-icon="storefront"></i>
+      <div class="item-store-text">
+        <span id="itemStoreName" class="item-store-name"></span>
+        <span id="itemStoreInfo" class="item-store-info"></span>
+      </div>
+      <button class="btn btn-quiet" data-action="remove-item-store">Togli negozio</button>
+    </div>
+
+    <div class="sheet-footer">
+      <button class="btn btn-danger-quiet" data-action="remove-edit-item"><i data-icon="trash"></i>Togli dalla lista</button>
+      <button class="btn btn-primary" data-action="close-sheet">Fatto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Azioni della lista aperta -->
+<div id="sheet-listMenu" class="sheet sheet-menu" role="dialog" aria-modal="true" aria-label="Azioni lista" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="menu">
+      <button class="menu-item" data-action="open-list-offers"><i data-icon="seal-percent"></i><span>Dove conviene comprare?</span></button>
+      <button id="groupByMenuItem" class="menu-item hidden" data-action="toggle-group-by"><i data-icon="storefront"></i><span>Raggruppa per negozio</span></button>
+      <hr class="menu-sep" />
+      <button class="menu-item" data-action="open-photo"><i data-icon="image"></i><span>Crea foto della lista</span></button>
+      <button class="menu-item" data-action="share-text" data-requires="share"><i data-icon="share-network"></i><span>Condividi come testo</span></button>
+      <button class="menu-item" data-action="copy-text"><i data-icon="copy"></i><span>Copia testo</span></button>
+      <hr class="menu-sep" />
+      <button class="menu-item" data-action="uncheck-all"><i data-icon="arrow-counter-clockwise"></i><span>Togli tutte le spunte</span></button>
+      <button class="menu-item" data-action="duplicate-list"><i data-icon="copy"></i><span>Duplica lista</span></button>
+      <button class="menu-item" data-action="archive-list"><i data-icon="archive"></i><span>Archivia lista</span></button>
+      <button class="menu-item menu-item-danger" data-action="delete-list"><i data-icon="trash"></i><span>Elimina lista</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Menu generale -->
+<div id="sheet-appMenu" class="sheet sheet-menu" role="dialog" aria-modal="true" aria-label="Altre opzioni" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="menu">
+      <button class="menu-item" data-action="open-category-order"><i data-icon="arrows-down-up"></i><span>Ordina i reparti</span></button>
+      <button class="menu-item" data-action="new-food"><i data-icon="plus"></i><span>Nuovo alimento</span></button>
+      <hr class="menu-sep" />
+      <button class="menu-item" data-action="export-backup"><i data-icon="download-simple"></i><span>Salva backup</span></button>
+      <button class="menu-item" data-action="import-backup"><i data-icon="upload-simple"></i><span>Ripristina backup</span></button>
+    </div>
+    <input id="importFile" type="file" accept="application/json,.json" hidden />
+  </div>
+</div>
+
+<!-- Nuovo alimento / modifica alimento personalizzato -->
+<div id="sheet-food" class="sheet" role="dialog" aria-modal="true" aria-labelledby="foodSheetTitle" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <h2 id="foodSheetTitle" class="sheet-title">Nuovo alimento</h2>
+      <button class="icon-btn" data-action="close-sheet" aria-label="Chiudi"><i data-icon="x"></i></button>
+    </div>
+    <div class="form-field">
+      <label for="foodName">Nome</label>
+      <input id="foodName" type="text" placeholder="Es. Kiwi" autocomplete="off" enterkeyhint="done" />
+    </div>
+    <div class="form-field">
+      <label for="foodCategory">Reparto</label>
+      <div class="select-wrap">
+        <select id="foodCategory"></select>
+        <i data-icon="caret-down" class="select-caret"></i>
+      </div>
+    </div>
+    <div class="form-field">
+      <span class="field-label">Icona</span>
+      <div id="iconPicker" class="icon-picker" role="radiogroup" aria-label="Icona"></div>
+    </div>
+    <div class="sheet-footer">
+      <button id="foodDeleteBtn" class="btn btn-danger-quiet hidden" data-action="delete-food"><i data-icon="trash"></i>Elimina</button>
+      <button class="btn btn-quiet" data-action="close-sheet">Annulla</button>
+      <button id="foodSaveBtn" class="btn btn-primary" data-action="save-food">Salva alimento</button>
+    </div>
+  </div>
+</div>
+
+<!-- Foto della spesa -->
+<div id="sheet-photo" class="sheet sheet-tall" role="dialog" aria-modal="true" aria-labelledby="photoTitle" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <div>
+        <h2 id="photoTitle" class="sheet-title">Foto della lista</h2>
+        <p id="photoInfo" class="sheet-subtitle"></p>
+      </div>
+      <button class="icon-btn" data-action="close-sheet" aria-label="Chiudi"><i data-icon="x"></i></button>
+    </div>
+    <div class="photo-stage sheet-scroll">
+      <img id="photoPreview" alt="Anteprima della foto della lista" />
+    </div>
+    <div class="sheet-footer">
+      <button id="photoDownloadBtn" class="btn btn-quiet" data-action="photo-download"><i data-icon="download-simple"></i>Salva</button>
+      <button id="photoShareBtn" class="btn btn-primary" data-action="photo-share"><i data-icon="share-network"></i>Condividi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ordine dei reparti -->
+<div id="sheet-categoryOrder" class="sheet" role="dialog" aria-modal="true" aria-labelledby="categoryOrderTitle" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <div>
+        <h2 id="categoryOrderTitle" class="sheet-title">Ordina i reparti</h2>
+        <p class="sheet-subtitle">Mettili nell'ordine in cui li trovi al supermercato.</p>
+      </div>
+      <button class="icon-btn" data-action="close-sheet" aria-label="Chiudi"><i data-icon="x"></i></button>
+    </div>
+    <ol id="categoryOrderList" class="order-list"></ol>
+    <div class="sheet-footer">
+      <button class="btn btn-quiet" data-action="reset-category-order">Ripristina</button>
+      <button class="btn btn-primary" data-action="close-sheet">Fatto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Posizione e raggio per le offerte -->
+<div id="sheet-place" class="sheet" role="dialog" aria-modal="true" aria-labelledby="placeTitle" hidden>
+  <div class="sheet-panel">
+    <div class="sheet-grabber" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <div>
+        <h2 id="placeTitle" class="sheet-title">Dove fai la spesa?</h2>
+        <p class="sheet-subtitle">Cerco i supermercati intorno a questo punto.</p>
+      </div>
+      <button class="icon-btn" data-action="close-sheet" aria-label="Chiudi"><i data-icon="x"></i></button>
+    </div>
+    <form id="placeForm" class="place-form">
+      <div class="search-box">
+        <i data-icon="map-pin"></i>
+        <input id="placeInput" type="search" placeholder="Via, numero civico, città" autocomplete="street-address" enterkeyhint="search" />
+      </div>
+      <button type="button" class="btn btn-quiet place-geo-btn" data-action="place-geo"><i data-icon="crosshair"></i>Usa la mia posizione</button>
+    </form>
+    <div class="form-field">
+      <span class="field-label">Distanza massima</span>
+      <div id="radiusPicker" class="radius-picker" role="radiogroup" aria-label="Distanza massima">
+        <button type="button" class="preset" data-action="place-radius" data-km="0.5" role="radio">500 m</button>
+        <button type="button" class="preset" data-action="place-radius" data-km="1" role="radio">1 km</button>
+        <button type="button" class="preset" data-action="place-radius" data-km="2" role="radio">2 km</button>
+        <button type="button" class="preset" data-action="place-radius" data-km="3" role="radio">3 km</button>
+        <button type="button" class="preset" data-action="place-radius" data-km="5" role="radio">5 km</button>
+        <button type="button" class="preset" data-action="place-radius" data-km="10" role="radio">10 km</button>
+      </div>
+    </div>
+    <div class="sheet-footer">
+      <button class="btn btn-quiet" data-action="close-sheet">Annulla</button>
+      <button class="btn btn-primary" data-action="place-search"><i data-icon="magnifying-glass"></i>Cerca negozi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Conferma -->
+<div id="sheet-confirm" class="sheet sheet-small" role="alertdialog" aria-modal="true" aria-labelledby="confirmMessage" hidden>
+  <div class="sheet-panel">
+    <p id="confirmMessage" class="confirm-message"></p>
+    <div class="sheet-footer">
+      <button class="btn btn-quiet" data-action="close-sheet">Annulla</button>
+      <button id="confirmOkBtn" class="btn btn-danger" data-action="confirm-ok">Elimina</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
